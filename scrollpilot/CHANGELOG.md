@@ -1,9 +1,5 @@
-# Change Log
-
-All notable changes to the "scrollpilot" extension will be documented in this file.
-
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
 ## [Unreleased]
+- Integration with Google Account for 
 
+## [0.0.1] - 
 - Initial release

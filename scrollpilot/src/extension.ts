@@ -1,9 +1,25 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { fetchChannelShorts } from './youtubeService';
 
-class InstagramWebviewProvider implements vscode.WebviewViewProvider {
-	constructor(private readonly _extensionUri: vscode.Uri) {}
+class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
+	private currentVideoIndex: number = 0;
+	private currentVideos: any[] = [];
+	
+	public readonly defaultChannels: string[];
+
+	constructor(
+		private readonly _extensionUri: vscode.Uri,
+		defaultChannels: string[] = []
+	) {
+		// Initialize with provided default channels or fallback to a hardcoded list
+		this.defaultChannels = defaultChannels.length > 0 ? defaultChannels : [
+			'Law By Mike', 
+			'MrBeast', 
+			'Steven He', 
+			'Fireship', 
+			'Kings and Generals'
+		];
+	}
 
 	public resolveWebviewView(
 		webviewView: vscode.WebviewView,
@@ -16,272 +32,504 @@ class InstagramWebviewProvider implements vscode.WebviewViewProvider {
 		};
 
 		webviewView.webview.html = this.getWebviewContent(webviewView.webview);
+
+		// Handle messages from the webview
+		webviewView.webview.onDidReceiveMessage(async (message) => {
+			switch (message.type) {
+				case 'loadVideos':
+					await this.loadVideos(webviewView.webview);
+					break;
+				case 'nextVideo':
+					this.playNextVideo(webviewView.webview);
+					break;
+				case 'previousVideo':
+					this.playPreviousVideo(webviewView.webview);
+					break;
+				case 'videoEnded':
+					if (vscode.workspace.getConfiguration('scrollpilot').get('autoplay')) {
+						this.playNextVideo(webviewView.webview);
+					}
+					break;
+			}
+		});
+
+		// Load videos on initial load
+		this.loadVideos(webviewView.webview);
 	}
 
-	private getWebviewContent(webview: vscode.Webview): string {
+	private async loadVideos(webview: vscode.Webview): Promise<void> {
+		try {
+			const config = vscode.workspace.getConfiguration('scrollpilot');
+			let channels = config.get<string[]>('channels') || [];
+			const maxVideosPerChannel = config.get<number>('maxVideosPerChannel') || 10;
+			
+			// Use default channels if no channels are configured
+			if (channels.length === 0) {
+				channels = this.defaultChannels;
+				webview.postMessage({
+					type: 'info',
+					message: 'Using default channels. Refer to the `README.md` on how to configure your own channels.'
+				});
+			}
+
+			webview.postMessage({ type: 'loading', message: 'Loading YouTube Shorts...' });
+
+			const shorts = await fetchChannelShorts(channels, maxVideosPerChannel);
+			this.currentVideos = shorts;
+			this.currentVideoIndex = 0;
+
+			if (this.currentVideos.length === 0) {
+				webview.postMessage({
+					type: 'error',
+					message: 'No Shorts found from configured channels. Check your channel IDs.'
+				});
+				return;
+			}
+
+			webview.postMessage({
+				type: 'videosLoaded',
+				videos: this.currentVideos,
+				currentIndex: this.currentVideoIndex
+			});
+
+		} catch (error: any) {
+			webview.postMessage({
+				type: 'error',
+				message: error.message
+			});
+		}
+	}
+
+	private playNextVideo(webview: vscode.Webview): void {
+		if (this.currentVideos.length === 0) return;
+		
+		this.currentVideoIndex = (this.currentVideoIndex + 1) % this.currentVideos.length;
+		webview.postMessage({
+			type: 'playVideo',
+			video: this.currentVideos[this.currentVideoIndex],
+			index: this.currentVideoIndex
+		});
+	}
+
+	private playPreviousVideo(webview: vscode.Webview): void {
+		if (this.currentVideos.length === 0) return;
+		
+		this.currentVideoIndex = this.currentVideoIndex === 0 ? 
+			this.currentVideos.length - 1 : 
+			this.currentVideoIndex - 1;
+		webview.postMessage({
+			type: 'playVideo',
+			video: this.currentVideos[this.currentVideoIndex],
+			index: this.currentVideoIndex
+		});
+	}
+
+	public getWebviewContent(webview: vscode.Webview): string {
 		return `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Instagram for VS Code</title>
+	<title>YouTube Shorts for VS Code</title>
 	<style>
 		body {
 			margin: 0;
-			padding: 20px;
+			padding: 0;
 			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-			min-height: 100vh;
+			background-color: #0f0f0f;
 			color: white;
+			overflow: hidden;
 		}
 		
 		.container {
-			max-width: 400px;
-			margin: 0 auto;
-			text-align: center;
+			width: 100%;
+			height: 100vh;
+			display: flex;
+			flex-direction: column;
+			position: relative;
 		}
-		
-		.instagram-logo {
-			font-size: 60px;
-			margin-bottom: 20px;
+
+		.header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			padding: 10px;
+			background-color: #212121;
+			z-index: 100;
 		}
-		
+
+		.logo-title {
+			display: flex;
+			align-items: center;
+		}
+
+		.logo {
+			width: 30px;
+			height: 20px;
+			background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTEyIiBoZWlnaHQ9IjgwIiB2aWV3Qm94PSIwIDAgMTEyIDgwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTA5Ljg0MSAxMi4yMTVDMTA4LjYzOCA3LjgzMzMzIDEwNS4xNTEgNC4zNDMzMyAxMDAuNzc0IDMuMTQ4MzNDOTIuNDg0MSAwLjk5OTk5NyA1NiAwLjk5OTk5NyA1NiAwLjk5OTk5N0M1NiAwLjk5OTk5NyAxOS41MTU5IDEgMTEuMjI1OSAzLjE0ODMzQzYuODQ4OTQgNC4zNDMzMyAzLjM2MTk0IDcuODMzMzMgMi4xNTg5NCAxMi4yMTVDMCAxOC40OTIgMCAzMS41IDAgMzEuNUMwIDMxLjUgMCA0NC41MDggMCA1MC43ODVDMS4yMDI5NCA1NS4xNjY3IDQuNjg5OTQgNTguNjU2NyA5LjA2Njk0IDU5Ljg1MTdDMTcuMzU2IDYyIDUzLjgzOTEgNjIgNTMuODM5MSA2MkM1My44MzkxIDYyIDkwLjMyNCA2MiA5OC42MTQgNTkuODUxN0MxMDIuOTkxIDU4LjY1NjcgMTA2LjQ3OCA1NS4xNjY3IDEwNy42ODEgNTAuNzg1QzEwOS44NCA0NC41MDggMTA5Ljg0IDMxLjUgMTA5Ljg0IDMxLjVDMTA5Ljg0IDMxLjUgMTA5Ljg0IDE4LjQ5MiAxMDkuODQxIDEyLjIxNVoiIGZpbGw9IiNGRjAwMDAiLz4KPHBhdGggZD0iTTQ1IDIyVjQxTDcyIDMxLjVMNDUgMjJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K');
+			background-size: contain;
+			background-repeat: no-repeat;
+			margin-right: 10px;
+		}
+
 		.title {
-			font-size: 24px;
-			font-weight: bold;
-			margin-bottom: 10px;
-			background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-			-webkit-background-clip: text;
-			-webkit-text-fill-color: transparent;
-			background-clip: text;
-		}
-		
-		.subtitle {
 			font-size: 16px;
-			margin-bottom: 30px;
-			opacity: 0.9;
-		}
-		
-		.button {
-			display: inline-block;
-			padding: 12px 24px;
-			margin: 8px;
-			background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-			color: white;
-			border: none;
-			border-radius: 25px;
-			font-size: 14px;
 			font-weight: bold;
-			cursor: pointer;
-			text-decoration: none;
-			transition: all 0.3s ease;
-			box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 		}
-		
-		.button:hover {
-			transform: translateY(-2px);
-			box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+
+		.controls {
+			display: flex;
+			gap: 5px;
 		}
-		
-		.button.secondary {
-			background: rgba(255,255,255,0.1);
-			backdrop-filter: blur(10px);
-		}
-		
-		.embed-container {
-			background: rgba(255,255,255,0.1);
-			border-radius: 15px;
-			padding: 20px;
-			margin: 20px 0;
-			backdrop-filter: blur(10px);
-		}
-		
-		.embed-container h3 {
-			margin: 0 0 15px 0;
-			font-size: 18px;
-		}
-		
-		.iframely-embed {
-			margin: 10px 0;
-		}
-		
-		.info-box {
-			background: rgba(255,255,255,0.1);
-			border-radius: 15px;
-			padding: 20px;
-			margin: 20px 0;
-			backdrop-filter: blur(10px);
-		}
-		
-		.info-box h3 {
-			margin: 0 0 10px 0;
-			font-size: 18px;
-		}
-		
-		.info-box p {
-			margin: 0;
-			font-size: 14px;
-			opacity: 0.9;
-		}
-		
-		.feature-list {
-			list-style: none;
-			padding: 0;
-			margin: 20px 0;
-		}
-		
-		.feature-list li {
-			padding: 8px 0;
-			font-size: 14px;
-			opacity: 0.9;
-		}
-		
-		.feature-list li:before {
-			content: "✨ ";
-			margin-right: 8px;
-		}
-		
-		.links {
-			margin-top: 30px;
-		}
-		
-		.links a {
+
+		.control-btn {
+			background: #333;
+			border: none;
 			color: white;
-			text-decoration: underline;
-			margin: 0 10px;
-			font-size: 14px;
-			opacity: 0.9;
+			padding: 5px 8px;
+			border-radius: 3px;
+			cursor: pointer;
+			font-size: 12px;
+		}
+
+		.control-btn:hover {
+			background: #555;
 		}
 		
-		.links a:hover {
-			opacity: 1;
+		.video-container {
+			flex-grow: 1;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			position: relative;
+			background: #000;
+		}
+
+		.video-player {
+			width: 100%;
+			height: 100%;
+			max-width: 400px;
+		}
+
+		.navigation {
+			position: absolute;
+			top: 50%;
+			transform: translateY(-50%);
+			z-index: 10;
+		}
+
+		.nav-btn {
+			background: rgba(0, 0, 0, 0.7);
+			border: none;
+			color: white;
+			width: 40px;
+			height: 40px;
+			border-radius: 50%;
+			cursor: pointer;
+			font-size: 16px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.nav-btn:hover {
+			background: rgba(0, 0, 0, 0.9);
+		}
+
+		.nav-prev {
+			left: 10px;
+		}
+
+		.nav-next {
+			right: 10px;
+		}
+
+		.video-info {
+			position: absolute;
+			bottom: 10px;
+			left: 10px;
+			right: 10px;
+			background: rgba(0, 0, 0, 0.7);
+			padding: 10px;
+			border-radius: 5px;
+			z-index: 10;
+		}
+
+		.video-title {
+			font-size: 14px;
+			margin-bottom: 5px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.video-channel {
+			font-size: 12px;
+			color: #ccc;
+		}
+
+		.error-message, .loading-message {
+			text-align: center;
+			padding: 20px;
+			font-size: 14px;
+		}
+
+		.error-message {
+			color: #ff6b6b;
+		}
+
+		.loading-message {
+			color: #4ecdc4;
 		}
 	</style>
 </head>
 <body>
 	<div class="container">
-		<div class="instagram-logo">📸</div>
-		<h1 class="title">ScrollPilot</h1>
-		<p class="subtitle">Instagram for VS Code</p>
-		
-		<div class="embed-container">
-			<blockquote class="instagram-media" data-instgrm-captioned data-instgrm-permalink="https://www.instagram.com/reel/DLr86tfgafD/?utm_source=ig_embed&amp;utm_campaign=loading" data-instgrm-version="14" style=" background:#FFF; border:0; border-radius:3px; box-shadow:0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15); margin: 1px; max-width:540px; min-width:326px; padding:0; width:99.375%; width:-webkit-calc(100% - 2px); width:calc(100% - 2px);"><div style="padding:16px;"> <a href="https://www.instagram.com/reel/DLr86tfgafD/?utm_source=ig_embed&amp;utm_campaign=loading" style=" background:#FFFFFF; line-height:0; padding:0 0; text-align:center; text-decoration:none; width:100%;" target="_blank"> <div style=" display: flex; flex-direction: row; align-items: center;"> <div style="background-color: #F4F4F4; border-radius: 50%; flex-grow: 0; height: 40px; margin-right: 14px; width: 40px;"></div> <div style="display: flex; flex-direction: column; flex-grow: 1; justify-content: center;"> <div style=" background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; margin-bottom: 6px; width: 100px;"></div> <div style=" background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; width: 60px;"></div></div></div><div style="padding: 19% 0;"></div> <div style="display:block; height:50px; margin:0 auto 12px; width:50px;"><svg width="50px" height="50px" viewBox="0 0 60 60" version="1.1" xmlns="https://www.w3.org/2000/svg" xmlns:xlink="https://www.w3.org/1999/xlink"><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><g transform="translate(-511.000000, -20.000000)" fill="#000000"><g><path d="M556.869,30.41 C554.814,30.41 553.148,32.076 553.148,34.131 C553.148,36.186 554.814,37.852 556.869,37.852 C558.924,37.852 560.59,36.186 560.59,34.131 C560.59,32.076 558.924,30.41 556.869,30.41 M541,60.657 C535.114,60.657 530.342,55.887 530.342,50 C530.342,44.114 535.114,39.342 541,39.342 C546.887,39.342 551.658,44.114 551.658,50 C551.658,55.887 546.887,60.657 541,60.657 M541,33.886 C532.1,33.886 524.886,41.1 524.886,50 C524.886,58.899 532.1,66.113 541,66.113 C549.9,66.113 557.115,58.899 557.115,50 C557.115,41.1 549.9,33.886 541,33.886 M565.378,62.101 C565.244,65.022 564.756,66.606 564.346,67.663 C563.803,69.06 563.154,70.057 562.106,71.106 C561.058,72.155 560.06,72.803 558.662,73.347 C557.607,73.757 556.021,74.244 553.102,74.378 C549.944,74.521 548.997,74.552 541,74.552 C533.003,74.552 532.056,74.521 528.898,74.378 C525.979,74.244 524.393,73.757 523.338,73.347 C521.94,72.803 520.942,72.155 519.894,71.106 C518.846,70.057 518.197,69.06 517.654,67.663 C517.244,66.606 516.755,65.022 516.623,62.101 C516.479,58.943 516.448,57.996 516.448,50 C516.448,42.003 516.479,41.056 516.623,37.899 C516.755,34.978 517.244,33.391 517.654,32.338 C518.197,30.938 518.846,29.942 519.894,28.894 C520.942,27.846 521.94,27.196 523.338,26.654 C524.393,26.244 525.979,25.756 528.898,25.623 C532.057,25.479 533.004,25.448 541,25.448 C548.997,25.448 549.943,25.479 553.102,25.623 C556.021,25.756 557.607,26.244 558.662,26.654 C560.06,27.196 561.058,27.846 562.106,28.894 C563.154,29.942 563.803,30.938 564.346,32.338 C564.756,33.391 565.244,34.978 565.378,37.899 C565.522,41.056 565.552,42.003 565.552,50 C565.552,57.996 565.522,58.943 565.378,62.101 M570.82,37.631 C570.674,34.438 570.167,32.258 569.425,30.349 C568.659,28.377 567.633,26.702 565.965,25.035 C564.297,23.368 562.623,22.342 560.652,21.575 C558.743,20.834 556.562,20.326 553.369,20.18 C550.169,20.033 549.148,20 541,20 C532.853,20 531.831,20.033 528.631,20.18 C525.438,20.326 523.257,20.834 521.349,21.575 C519.376,22.342 517.703,23.368 516.035,25.035 C514.368,26.702 513.342,28.377 512.574,30.349 C511.834,32.258 511.326,34.438 511.181,37.631 C511.035,40.831 511,41.851 511,50 C511,58.147 511.035,59.17 511.181,62.369 C511.326,65.562 511.834,67.743 512.574,69.651 C513.342,71.625 514.368,73.296 516.035,74.965 C517.703,76.634 519.376,77.658 521.349,78.425 C523.257,79.167 525.438,79.673 528.631,79.82 C531.831,79.965 532.853,80.001 541,80.001 C549.148,80.001 550.169,79.965 553.369,79.82 C556.562,79.673 558.743,79.167 560.652,78.425 C562.623,77.658 564.297,76.634 565.965,74.965 C567.633,73.296 568.659,71.625 569.425,69.651 C570.167,67.743 570.674,65.562 570.82,62.369 C570.966,59.17 571,58.147 571,50 C571,41.851 570.966,40.831 570.82,37.631"></path></g></g></g></svg></div><div style="padding-top: 8px;"> <div style=" color:#3897f0; font-family:Arial,sans-serif; font-size:14px; font-style:normal; font-weight:550; line-height:18px;">View this post on Instagram</div></div><div style="padding: 12.5% 0;"></div> <div style="display: flex; flex-direction: row; margin-bottom: 14px; align-items: center;"><div> <div style="background-color: #F4F4F4; border-radius: 50%; height: 12.5px; width: 12.5px; transform: translateX(0px) translateY(7px);"></div> <div style="background-color: #F4F4F4; height: 12.5px; transform: rotate(-45deg) translateX(3px) translateY(1px); width: 12.5px; flex-grow: 0; margin-right: 14px; margin-left: 2px;"></div> <div style="background-color: #F4F4F4; border-radius: 50%; height: 12.5px; width: 12.5px; transform: translateX(9px) translateY(-18px);"></div></div><div style="margin-left: 8px;"> <div style=" background-color: #F4F4F4; border-radius: 50%; flex-grow: 0; height: 20px; width: 20px;"></div> <div style=" width: 0; height: 0; border-top: 2px solid transparent; border-left: 6px solid #f4f4f4; border-bottom: 2px solid transparent; transform: translateX(16px) translateY(-4px) rotate(30deg)"></div></div><div style="margin-left: auto;"> <div style=" width: 0px; border-top: 8px solid #F4F4F4; border-right: 8px solid transparent; transform: translateY(16px);"></div> <div style=" background-color: #F4F4F4; flex-grow: 0; height: 12px; width: 16px; transform: translateY(-4px);"></div> <div style=" width: 0; height: 0; border-top: 8px solid #F4F4F4; border-left: 8px solid transparent; transform: translateY(-4px) translateX(8px);"></div></div></div> <div style="display: flex; flex-direction: column; flex-grow: 1; justify-content: center; margin-bottom: 24px;"> <div style=" background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; margin-bottom: 6px; width: 224px;"></div> <div style=" background-color: #F4F4F4; border-radius: 4px; flex-grow: 0; height: 14px; width: 144px;"></div></div></a><p style=" color:#c9c8cd; font-family:Arial,sans-serif; font-size:14px; line-height:17px; margin-bottom:0; margin-top:8px; overflow:hidden; padding:8px 0 7px; text-align:center; text-overflow:ellipsis; white-space:nowrap;"><a href="https://www.instagram.com/reel/DLr86tfgafD/?utm_source=ig_embed&amp;utm_campaign=loading" style=" color:#c9c8cd; font-family:Arial,sans-serif; font-size:14px; font-style:normal; font-weight:normal; line-height:17px; text-decoration:none;" target="_blank">A post shared by Anthony Sistilli (@asistilli)</a></p></div></blockquote>
-				<script async src="//www.instagram.com/embed.js"></script>
+		<div class="header">
+			<div class="logo-title">
+				<div class="logo"></div>
+				<div class="title">YouTube Shorts</div>
+			</div>
+			<div class="controls">
+				<button class="control-btn" onclick="refreshVideos()">Refresh</button>
+			</div>
 		</div>
-		
-		<button class="button" onclick="openInstagramBrowser()">
-			🌐 Open Instagram in Browser
-		</button>
-		
-		<div class="info-box">
-			<h3>✨ Coming Soon</h3>
-			<ul class="feature-list">
-				<li>Instagram Stories viewer</li>
-				<li>Post notifications</li>
-				<li>Quick photo upload</li>
-				<li>Hashtag trending</li>
-			</ul>
-		</div>
-		
-		<div class="links">
-			<a href="#" onclick="showHelp()">Help</a>
-			<a href="#" onclick="showSettings()">Settings</a>
+		<div class="video-container" id="videoContainer">
+			<div class="loading-message" id="loadingMessage">Loading...</div>
 		</div>
 	</div>
 
-	<script async src="//iframely.net/embed.js"></script>
 	<script>
 		const vscode = acquireVsCodeApi();
-		
-		function openInstagramBrowser() {
-			vscode.postMessage({
-				command: 'openExternal',
-				url: 'https://www.instagram.com'
-			});
+		let currentVideo = null;
+
+		// Request to load videos on startup
+		vscode.postMessage({ type: 'loadVideos' });
+
+		// Listen for messages from the extension
+		window.addEventListener('message', event => {
+			const message = event.data;
+			
+			switch (message.type) {
+				case 'videosLoaded':
+					displayVideo(message.videos[message.currentIndex], message.currentIndex, message.videos.length);
+					break;
+				case 'playVideo':
+					displayVideo(message.video, message.index, null);
+					break;
+				case 'error':
+					showError(message.message);
+					break;
+				case 'info':
+					showInfo(message.message);
+					break;
+				case 'loading':
+					showLoading(message.message);
+					break;
+			}
+		});
+
+		function displayVideo(video, index, total) {
+			currentVideo = video;
+			const container = document.getElementById('videoContainer');
+			
+			container.innerHTML = \`
+				<iframe class="video-player" 
+					src="https://www.youtube.com/embed/\${video.id}?autoplay=1&modestbranding=1&rel=0&showinfo=0" 
+					frameborder="0" 
+					allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+					allowfullscreen>
+				</iframe>
+				<div class="navigation nav-prev">
+					<button class="nav-btn" onclick="previousVideo()">↑</button>
+				</div>
+				<div class="navigation nav-next">
+					<button class="nav-btn" onclick="nextVideo()">↓</button>
+				</div>
+			\`;
+
+			// Listen for video end (this is a simplified approach)
+			// In a real implementation, you'd use the YouTube Player API
+			// setTimeout(() => {
+			// 	vscode.postMessage({ type: 'videoEnded' });
+			// }, 60000); // Assume max 60 seconds for shorts
+		}
+
+		function showError(message) {
+			const container = document.getElementById('videoContainer');
+			container.innerHTML = \`<div class="error-message">\${message}</div>\`;
+		}
+
+		function showLoading(message) {
+			const container = document.getElementById('videoContainer');
+			container.innerHTML = \`<div class="loading-message">\${message}</div>\`;
 		}
 		
-		function openInstagramMobile() {
-			vscode.postMessage({
-				command: 'openExternal',
-				url: 'https://www.instagram.com/?variant=mobile'
-			});
+		function showInfo(message) {
+			// Create an info banner at the top that will auto-dismiss
+			const infoElement = document.createElement('div');
+			infoElement.className = 'info-message';
+			infoElement.textContent = message;
+			infoElement.style.cssText = 'position:absolute; top:0; left:0; right:0; background:#4285f4; color:white; padding:8px 16px; z-index:200; text-align:center; font-size:12px;';
+			document.body.appendChild(infoElement);
+			
+			// Auto dismiss after 5 seconds
+			setTimeout(() => {
+				if (infoElement.parentNode) {
+					infoElement.parentNode.removeChild(infoElement);
+				}
+			}, 5000);
 		}
-		
-		function showHelp() {
-			vscode.postMessage({
-				command: 'showInfo',
-				message: 'ScrollPilot is your Instagram companion for VS Code. The embed above shows Instagram Reels using iframely!'
-			});
+
+		function nextVideo() {
+			vscode.postMessage({ type: 'nextVideo' });
 		}
-		
-		function showSettings() {
-			vscode.postMessage({
-				command: 'showInfo',
-				message: 'Settings and customization options coming soon! 🎨'
-			});
+
+		function previousVideo() {
+			vscode.postMessage({ type: 'previousVideo' });
 		}
+
+		function refreshVideos() {
+			showLoading('Refreshing...');
+			vscode.postMessage({ type: 'loadVideos' });
+		}
+
+		// Keyboard navigation
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+				e.preventDefault();
+				nextVideo();
+			} else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+				e.preventDefault();
+				previousVideo();
+			}
+		});
 	</script>
 </body>
 </html>`;
 	}
 }
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+// this method is called when your extension is activated
+// your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
+	// Use the console to output diagnostic information (console.log)
+	// and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "scrollpilot" is now active!');
-	
-	// Show a notification to confirm the extension loaded
-	vscode.window.showInformationMessage('ScrollPilot extension loaded! Look for the heart icon in the activity bar.');
-
-	// Register the webview provider for the sidebar
-	const provider = new InstagramWebviewProvider(context.extensionUri);
-	context.subscriptions.push(
-		vscode.window.registerWebviewViewProvider('scrollpilot-main', provider)
-	);
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('scrollpilot.helloWorld', () => {
+	let disposable = vscode.commands.registerCommand('scrollpilot.helloWorld', () => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from ScrollPilot!');
+		vscode.window.showInformationMessage('Hello World from scrollpilot!');
 	});
 
-	// Register the Instagram command
-	const openInstagramCommand = vscode.commands.registerCommand('scrollpilot.openInstagram', () => {
-		// Open Instagram in external browser instead of embedded webview
-		vscode.env.openExternal(vscode.Uri.parse('https://www.instagram.com'));
-		vscode.window.showInformationMessage('Opening Instagram in your browser! 🎉');
-	});
+	context.subscriptions.push(disposable);
 
-	// Handle messages from webview
-	context.subscriptions.push(
-		vscode.window.registerWebviewViewProvider('scrollpilot-main', {
-			resolveWebviewView: (webviewView) => {
-				provider.resolveWebviewView(webviewView, {} as any, {} as any);
-				
-				// Handle messages from webview
-				webviewView.webview.onDidReceiveMessage((message) => {
-					switch (message.command) {
-						case 'openExternal':
-							vscode.env.openExternal(vscode.Uri.parse(message.url));
-							break;
-						case 'showInfo':
-							vscode.window.showInformationMessage(message.message);
-							break;
-					}
-				});
-			}
-		})
+	// Get default channels from package.json
+	let defaultChannelsFromConfig: string[] = [];
+	
+	// Try to get the default channel values from package.json
+	try {
+		// Access the extension's package.json configuration
+		const packageJSON = context.extension.packageJSON;
+		if (packageJSON && 
+			packageJSON.contributes && 
+			packageJSON.contributes.configuration && 
+			packageJSON.contributes.configuration.properties && 
+			packageJSON.contributes.configuration.properties["scrollpilot.channels"]) {
+			
+			defaultChannelsFromConfig = packageJSON.contributes.configuration.properties["scrollpilot.channels"].default || [];
+			console.log('Read default channels from package.json:', defaultChannelsFromConfig);
+		}
+	} catch (error) {
+		console.error('Error reading default channels from package.json:', error);
+	}
+	
+	const provider = new YouTubeShortsWebviewProvider(
+		context.extensionUri, 
+		defaultChannelsFromConfig
 	);
 
-	context.subscriptions.push(disposable, openInstagramCommand);
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider("scrollpilot.youtubeShortsView", provider));
+
+	// Command to open YouTube Shorts in a new tab
+	let openCommand = vscode.commands.registerCommand('scrollpilot.openYouTubeShorts', () => {
+		const panel = vscode.window.createWebviewPanel(
+			'youtubeshortsView', // Identifies the type of the webview. Used internally
+			'YouTube Shorts', // Title of the panel displayed to the user
+			vscode.ViewColumn.One, // Editor column to show the new webview panel in.
+			{
+				enableScripts: true // Enable scripts in the webview
+			}
+		);
+
+		// Use the same provider instance to ensure consistency
+		panel.webview.html = provider.getWebviewContent(panel.webview);
+		
+		// Handle messages for the standalone panel too
+		panel.webview.onDidReceiveMessage(async (message) => {
+			// Send initial load videos message
+			if (message.type === 'loadVideos') {
+				panel.webview.postMessage({ type: 'loading', message: 'Loading YouTube Shorts...' });
+				
+				// Load videos using the configuration
+				try {
+					const config = vscode.workspace.getConfiguration('scrollpilot');
+					let channels = config.get<string[]>('channels') || [];
+					const maxVideosPerChannel = config.get<number>('maxVideosPerChannel') || 10;
+					
+					// Use default channels if no channels are configured
+					if (channels.length === 0) {
+						channels = provider.defaultChannels;
+						panel.webview.postMessage({
+							type: 'info',
+							message: 'Using default channels. Refer to the README.md on how to configure your own channels.'
+						});
+					}
+					
+					const shorts = await fetchChannelShorts(channels, maxVideosPerChannel);
+					
+					if (shorts.length === 0) {
+						panel.webview.postMessage({
+							type: 'error',
+							message: 'No Shorts found from configured channels. Check your channel names.'
+						});
+						return;
+					}
+					
+					panel.webview.postMessage({
+						type: 'videosLoaded',
+						videos: shorts,
+						currentIndex: 0
+					});
+				} catch (error: any) {
+					panel.webview.postMessage({
+						type: 'error',
+						message: error.message
+					});
+				}
+			}
+			
+			// For other messages, just reload the view which will trigger a new message sequence
+			else if (message.type === 'resetToDefaults') {
+				await vscode.workspace.getConfiguration('scrollpilot').update('channels', provider.defaultChannels, vscode.ConfigurationTarget.Global);
+				panel.webview.postMessage({
+					type: 'info',
+					message: 'Reset to default channels'
+				});
+				panel.webview.postMessage({ type: 'loadVideos' });
+			}
+		});
+	});
+
+	context.subscriptions.push(openCommand);
+
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}

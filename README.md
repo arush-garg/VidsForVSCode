@@ -1,29 +1,17 @@
-# Instagram for VSCode
+# ScrollPilot
 
-A VS Code extension that brings Instagram to your coding environment! 📸
+A VS Code extension that brings YouTube Shorts to your coding environment!
 
 ## ScrollPilot Extension
 
-Browse Instagram reels while agents code for you. Perfect for taking quick breaks without leaving VS Code.
-
-### Features
-
-- **Sidebar Integration**: Heart icon (❤️) in the VS Code activity bar
-- **Instagram Web View**: Full Instagram experience in a VS Code tab
-- **Auto-Launch**: Opens automatically when you chat with GitHub Copilot
-- **Seamless Browsing**: Watch reels and stories without context switching
+Browse YouTube Shorts while agents code for you. Perfect for taking quick breaks without leaving VS Code.
 
 ### Getting Started
 
-1. Navigate to the `scrollpilot` folder
-2. Install dependencies: `npm install`
-3. Compile the extension: `npm run compile`
-4. Test it: `code --extensionDevelopmentPath=.`
+1. Download the `.vsix` file in the `scrollpilot` folder
+2. In VS Code, go to Extensions -> ellipsis menu (...) -> Install from VSIX... -> Show Local
+3. Select the downloaded file and the extension will be installed (you might need to restart VS Code)
+4. Choose your channels by going to Settings and searching for `Scrollpilot: Channels`
 
-### Usage
-
-- Click the heart icon in the sidebar
-- Use Command Palette: "Open Instagram"
-- Auto-opens when using GitHub Copilot
-
-**Happy scrolling while coding!** 🎉
+<br> <br>
+<i> The developers take no responsibility for decrease in productivity, loss of sleep or any other adverse side-effects caused by this extension </i>
