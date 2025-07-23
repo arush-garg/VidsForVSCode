@@ -130,6 +130,7 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'unsafe-inline' https://www.youtube.com; frame-src https://www.youtube.com; connect-src https://www.youtube.com;">
 	<title>YouTube Shorts for VS Code</title>
 	<style>
 		body {
@@ -140,7 +141,6 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 			color: white;
 			overflow: hidden;
 		}
-		
 		.container {
 			width: 100%;
 			height: 100vh;
@@ -148,7 +148,6 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 			flex-direction: column;
 			position: relative;
 		}
-
 		.header {
 			display: flex;
 			align-items: center;
@@ -157,31 +156,26 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 			background-color: #212121;
 			z-index: 100;
 		}
-
 		.logo-title {
 			display: flex;
 			align-items: center;
 		}
-
 		.logo {
 			width: 30px;
 			height: 20px;
-			background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTEyIiBoZWlnaHQ9IjgwIiB2aWV3Qm94PSIwIDAgMTEyIDgwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTA5Ljg0MSAxMi4yMTVDMTA4LjYzOCA3LjgzMzMzIDEwNS4xNTEgNC4zNDMzMyAxMDAuNzc0IDMuMTQ4MzNDOTIuNDg0MSAwLjk5OTk5NyA1NiAwLjk5OTk5NyA1NiAwLjk5OTk5N0M1NiAwLjk5OTk5NyAxOS41MTU5IDEgMTEuMjI1OSAzLjE0ODMzQzYuODQ4OTQgNC4zNDMzMyAzLjM2MTk0IDcuODMzMzMgMi4xNTg5NCAxMi4yMTVDMCAxOC40OTIgMCAzMS41IDAgMzEuNUMwIDMxLjUgMCA0NC41MDggMCA1MC43ODVDMS4yMDI5NCA1NS4xNjY3IDQuNjg5OTQgNTguNjU2NyA5LjA2Njk0IDU5Ljg1MTdDMTcuMzU2IDYyIDUzLjgzOTEgNjIgNTMuODM5MSA2MkM1My44MzkxIDYyIDkwLjMyNCA2MiA5OC42MTQgNTkuODUxN0MxMDIuOTkxIDU4LjY1NjcgMTA2LjQ3OCA1NS4xNjY3IDEwNy42ODEgNTAuNzg1QzEwOS44NCA0NC41MDggMTA5Ljg0IDMxLjUgMTA5Ljg0IDMxLjVDMTA5Ljg0IDMxLjUgMTA5Ljg0IDE4LjQ5MiAxMDkuODQxIDEyLjIxNVoiIGZpbGw9IiNGRjAwMDAiLz4KPHBhdGggZD0iTTQ1IDIyVjQxTDcyIDMxLjVMNDUgMjJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K');
+			background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTEyIiBoZWlnaHQ9IjgwIiB2aWV3Qm94PSIwIDAgMTEyIDgwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8cGF0aCBkPSJNMTA5Ljg0MSAxMi4yMTVDMTA4LjYzOCA3LjgzMzMzIDEwNS4xNTEgNC4zNDMzMyAxMDAuNzc0IDMuMTQ4MzNDOTIuNDg0MSAwLjk5OTk5NyA1NiAwLjk5OTk5NyA1NiAwLjk5OTk5N0M1NiAwLjk99OTk5NyAxOS41MTU5IDEgMTEuMjI1OSAzLjE0ODMzQzYuODQ4OTQgNC4zNDMzMyAzLjM2MTk0IDcuODMzMzMgMi4xNTg5NCAxMi4yMTVDMCAxOC40OTIgMCAzMS41IDAgMzEuNUMwIDMxLjUgMCA0NC41MDggMCA1MC43ODVDMS4yMDI5NCA1NS4xNjY3IDQuNjg5OTQgNTguNjU2NyA5LjA2Njk0IDU5Ljg1MTdDMTcuMzU2IDYyIDUzLjgzOTEgNjIgNTMuODM5MSA2MkM1My44MzkxIDYyIDkwLjMyNCA2MiA5OC42MTQgNTkuODUxN0MxMDIuOTkxIDU4LjY1NjcgMTA2LjQ3OCA1NS4xNjY3IDEwNy42ODEgNTAuNzg1QzEwOS44NCA0NC41MDggMTA5Ljg0IDMxLjUgMTA5Ljg0IDMxLjVDMTA5Ljg0IDMxLjUgMTA5Ljg0IDE4LjQ5MiAxMDkuODQxIDEyLjIxNVoiIGZpbGw9IiNGRjAwMDAiLz4KPHBhdGggZD0iTTQ1IDIyVjQxTDcyIDMxLjVMNDUgMjJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K');
 			background-size: contain;
 			background-repeat: no-repeat;
 			margin-right: 10px;
 		}
-
 		.title {
 			font-size: 16px;
 			font-weight: bold;
 		}
-
 		.controls {
 			display: flex;
 			gap: 5px;
 		}
-
 		.control-btn {
 			background: #333;
 			border: none;
@@ -191,11 +185,9 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 			cursor: pointer;
 			font-size: 12px;
 		}
-
 		.control-btn:hover {
 			background: #555;
 		}
-		
 		.video-container {
 			flex-grow: 1;
 			display: flex;
@@ -204,20 +196,17 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 			position: relative;
 			background: #000;
 		}
-
 		.video-player {
 			width: 100%;
 			height: 100%;
 			max-width: 400px;
 		}
-
 		.navigation {
 			position: absolute;
 			top: 50%;
 			transform: translateY(-50%);
 			z-index: 10;
 		}
-
 		.nav-btn {
 			background: rgba(0, 0, 0, 0.7);
 			border: none;
@@ -231,19 +220,26 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 			align-items: center;
 			justify-content: center;
 		}
-
 		.nav-btn:hover {
 			background: rgba(0, 0, 0, 0.9);
 		}
-
 		.nav-prev {
 			left: 10px;
 		}
-
 		.nav-next {
 			right: 10px;
 		}
-
+		.error-message, .loading-message {
+			text-align: center;
+			padding: 20px;
+			font-size: 14px;
+		}
+		.error-message {
+			color: #ff6b6b;
+		}
+		.loading-message {
+			color: #4ecdc4;
+		}
 		.video-info {
 			position: absolute;
 			bottom: 10px;
@@ -254,7 +250,6 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 			border-radius: 5px;
 			z-index: 10;
 		}
-
 		.video-title {
 			font-size: 14px;
 			margin-bottom: 5px;
@@ -262,24 +257,9 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 			overflow: hidden;
 			text-overflow: ellipsis;
 		}
-
 		.video-channel {
 			font-size: 12px;
 			color: #ccc;
-		}
-
-		.error-message, .loading-message {
-			text-align: center;
-			padding: 20px;
-			font-size: 14px;
-		}
-
-		.error-message {
-			color: #ff6b6b;
-		}
-
-		.loading-message {
-			color: #4ecdc4;
 		}
 	</style>
 </head>
@@ -301,7 +281,21 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 
 	<script>
 		const vscode = acquireVsCodeApi();
+		let ytPlayer = null;
 		let currentVideo = null;
+		let isPlayerReady = false;
+		let videoEndTimer = null;
+
+		// Load YouTube API
+		const tag = document.createElement('script');
+		tag.src = 'https://www.youtube.com/iframe_api';
+		const firstScriptTag = document.getElementsByTagName('script')[0];
+		firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+		// This function is called by the YouTube API when it's ready
+		window.onYouTubeIframeAPIReady = function() {
+			isPlayerReady = true;
+		};
 
 		// Request to load videos on startup
 		vscode.postMessage({ type: 'loadVideos' });
@@ -333,13 +327,16 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 			currentVideo = video;
 			const container = document.getElementById('videoContainer');
 			
+			// Clear any existing timer
+			if (videoEndTimer) {
+				clearTimeout(videoEndTimer);
+			}
+
+			// Create a unique player div ID
+			const playerId = 'ytplayer-' + Date.now();
+			
 			container.innerHTML = \`
-				<iframe class="video-player" 
-					src="https://www.youtube.com/embed/\${video.id}?autoplay=1&modestbranding=1&rel=0&showinfo=0" 
-					frameborder="0" 
-					allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-					allowfullscreen>
-				</iframe>
+				<div id="\${playerId}" class="video-player"></div>
 				<div class="navigation nav-prev">
 					<button class="nav-btn" onclick="previousVideo()">↑</button>
 				</div>
@@ -348,11 +345,96 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 				</div>
 			\`;
 
-			// Listen for video end (this is a simplified approach)
-			// In a real implementation, you'd use the YouTube Player API
-			// setTimeout(() => {
-			// 	vscode.postMessage({ type: 'videoEnded' });
-			// }, 60000); // Assume max 60 seconds for shorts
+			// Initialize YouTube Player
+			if (isPlayerReady) {
+				initializePlayer(playerId, video.id);
+			} else {
+				// Wait for API to be ready
+				const checkReady = setInterval(() => {
+					if (isPlayerReady) {
+						clearInterval(checkReady);
+						initializePlayer(playerId, video.id);
+					}
+				}, 100);
+			}
+		}
+
+		function initializePlayer(playerId, videoId) {
+			try {
+				ytPlayer = new YT.Player(playerId, {
+					height: '100%',
+					width: '100%',
+					videoId: videoId,
+					playerVars: {
+						autoplay: 1,
+						controls: 1,
+						modestbranding: 1,
+						rel: 0,
+						showinfo: 0,
+						fs: 0,
+						cc_load_policy: 0,
+						iv_load_policy: 3,
+						autohide: 1
+					},
+					events: {
+						onReady: onPlayerReady,
+						onStateChange: onPlayerStateChange,
+						onError: onPlayerError
+					}
+				});
+			} catch (error) {
+				vscode.window.showErrorMessage('Error initializing YouTube player: ' + error.message);
+				
+				// Fallback to iframe if player creation fails
+				document.getElementById(playerId).innerHTML = \`
+					<iframe 
+						width="100%" 
+						height="100%" 
+						src="https://www.youtube.com/embed/\${videoId}?autoplay=1&controls=1&modestbranding=1&rel=0&showinfo=0"
+						frameborder="0" 
+						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+						allowfullscreen>
+					</iframe>
+				\`;
+			}
+		}
+
+		function onPlayerReady(event) {
+			console.log('YouTube player ready');
+			event.target.playVideo();
+		}
+
+		function onPlayerStateChange(event) {
+			console.log('Player state changed:', event.data);
+			
+			// Clear any existing timer when state changes
+			if (videoEndTimer) {
+				clearTimeout(videoEndTimer);
+				videoEndTimer = null;
+			}
+
+			switch (event.data) {
+				case YT.PlayerState.ENDED:
+					console.log('Video ended');
+					vscode.postMessage({ type: 'videoEnded' });
+					break;
+				case YT.PlayerState.PAUSED:
+					console.log('Video paused');
+					break;
+				case YT.PlayerState.BUFFERING:
+					console.log('Video buffering');
+					break;
+			}
+		}
+
+		function onPlayerError(event) {
+			console.error('YouTube player error:', event.data);
+			showError('Error loading video. It may be unavailable or restricted.');
+			
+			// Auto-advance to next video after error
+			setTimeout(() => {
+				vscode.postMessage({ type: 'nextVideo' });
+			}, 3000);
 		}
 
 		function showError(message) {
@@ -366,14 +448,11 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 		}
 		
 		function showInfo(message) {
-			// Create an info banner at the top that will auto-dismiss
 			const infoElement = document.createElement('div');
-			infoElement.className = 'info-message';
 			infoElement.textContent = message;
-			infoElement.style.cssText = 'position:absolute; top:0; left:0; right:0; background:#4285f4; color:white; padding:8px 16px; z-index:200; text-align:center; font-size:12px;';
+			infoElement.style.cssText = 'position:absolute; top:50px; left:0; right:0; background:#4285f4; color:white; padding:8px 16px; z-index:200; text-align:center; font-size:12px;';
 			document.body.appendChild(infoElement);
 			
-			// Auto dismiss after 5 seconds
 			setTimeout(() => {
 				if (infoElement.parentNode) {
 					infoElement.parentNode.removeChild(infoElement);
@@ -396,12 +475,43 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 
 		// Keyboard navigation
 		document.addEventListener('keydown', (e) => {
-			if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-				e.preventDefault();
-				nextVideo();
-			} else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-				e.preventDefault();
-				previousVideo();
+			// Only handle keys if not in an input field
+			if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+				return;
+			}
+
+			switch (e.key) {
+				case 'ArrowDown':
+				case 'ArrowRight':
+					e.preventDefault();
+					nextVideo();
+					break;
+				case 'ArrowUp':
+				case 'ArrowLeft':
+					e.preventDefault();
+					previousVideo();
+					break;
+				case ' ':
+					e.preventDefault();
+					if (ytPlayer && ytPlayer.getPlayerState) {
+						const state = ytPlayer.getPlayerState();
+						if (state === YT.PlayerState.PLAYING) {
+							ytPlayer.pauseVideo();
+						} else if (state === YT.PlayerState.PAUSED) {
+							ytPlayer.playVideo();
+						}
+					}
+					break;
+			}
+		});
+
+		// Cleanup on page unload
+		window.addEventListener('beforeunload', () => {
+			if (videoEndTimer) {
+				clearTimeout(videoEndTimer);
+			}
+			if (ytPlayer && ytPlayer.destroy) {
+				ytPlayer.destroy();
 			}
 		});
 	</script>
@@ -417,19 +527,8 @@ export function activate(context: vscode.ExtensionContext) {
 	// Use the console to output diagnostic information (console.log)
 	// and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "scrollpilot" is now active!');
-
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('scrollpilot.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from scrollpilot!');
-	});
-
-	context.subscriptions.push(disposable);
-
+	vscode.window.showInformationMessage('ScrollPilot extension is now active!');
+	
 	// Get default channels from package.json
 	let defaultChannelsFromConfig: string[] = [];
 	

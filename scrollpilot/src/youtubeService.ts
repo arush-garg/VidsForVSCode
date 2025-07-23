@@ -21,14 +21,14 @@ async function fetchChannelShorts(channels: string[], maxVideosPerChannel = 10) 
 	for (const channel of channels) {
 		try {
 			console.log(`Searching for shorts from channel: ${channel}`);
-			const videos = await YouTube.search(channel + " shorts", { limit: 100, type: "video" });
+			
+			const videos = await YouTube.search(channel + " shorts", { limit: 50, type: "video" });
 
 			shuffle(videos);
             
 			const shorts = [];
 			for (const video of videos) {
-				if ((video.duration && video.duration <= 60) || 
-				   (video.title && video.title.toLowerCase().includes("shorts"))) {
+				if (video.duration && video.duration <= 60000) { // Duration in milliseconds
 					shorts.push(video);
 				}
 
@@ -45,6 +45,7 @@ async function fetchChannelShorts(channels: string[], maxVideosPerChannel = 10) 
 	}
 	
 	console.log(`→ Total: ${allShorts.length} Shorts found`);
+	shuffle(allShorts);
 	return allShorts;
 }
 
