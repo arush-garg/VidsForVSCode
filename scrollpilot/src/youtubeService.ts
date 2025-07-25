@@ -3,11 +3,12 @@ import * as vscode from 'vscode';
 
 
 async function shuffle(array: any[]) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
+	for (let i = array.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[array[i], array[j]] = [array[j], array[i]];
+	}
 }
+
 
 /**
  * Fetch shorts from a list of YouTube channels
@@ -16,35 +17,31 @@ async function shuffle(array: any[]) {
  * @returns Array of shorts videos
  */
 async function fetchChannelShorts(channels: string[], maxVideosPerChannel = 10) {
-	const allShorts = [];
-	
-	for (const channel of channels) {
+	const channelPromises = channels.map(async (channel) => {
 		try {
 			console.log(`Searching for shorts from channel: ${channel}`);
-			
 			const videos = await YouTube.search(channel + " shorts", { limit: 50, type: "video" });
-
 			shuffle(videos);
-            
 			const shorts = [];
 			for (const video of videos) {
 				if (video.duration && video.duration <= 60000) { // Duration in milliseconds
 					shorts.push(video);
 				}
-
-                if (shorts.length >= maxVideosPerChannel) {
-                    break;
-                }
+				if (shorts.length >= maxVideosPerChannel) {
+					break;
+				}
 			}
-			
 			console.log(`→ Found ${shorts.length} Shorts from ${channel}`);
-			allShorts.push(...shorts);
+			return shorts;
 		} catch (error) {
 			console.error(`Error fetching shorts from ${channel}:`, error);
+			return [];
 		}
-	}
-	
-	console.log(`→ Total: ${allShorts.length} Shorts found`);
+	});
+
+	const shortsArrays = await Promise.all(channelPromises);
+	const allShorts = shortsArrays.flat();
+	vscode.window.showInformationMessage(`Total: ${allShorts.length} Shorts found`);
 	shuffle(allShorts);
 	return allShorts;
 }
