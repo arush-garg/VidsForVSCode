@@ -132,6 +132,19 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'unsafe-inline' https://www.youtube.com; frame-src https://www.youtube.com; connect-src https://www.youtube.com;">
 	<title>YouTube Shorts for VS Code</title>
+	<script>
+		// Bail out of cast initialization entirely
+		window.chrome = window.chrome || {};
+		window.chrome.cast = window.chrome.cast || { initialize: () => {}, isAvailable: false };
+
+		// Stub PresentationRequest so it doesn't throw
+		window.PresentationRequest = window.PresentationRequest || class {
+			constructor() { return this; }
+			static requestSession() { throw new Error('Presentation disabled'); }
+			static getAvailability() { return Promise.resolve({ value: false }); }
+		};
+	</script>
+	<script src="https://www.youtube.com/iframe_api"></script>
 	<style>
 		body {
 			margin: 0;
@@ -374,7 +387,10 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 						fs: 0,
 						cc_load_policy: 0,
 						iv_load_policy: 3,
-						autohide: 1
+						autohide: 1,
+						enablejsapi: 1,
+  						origin: window.location.origin
+
 					},
 					events: {
 						onReady: onPlayerReady,
@@ -382,6 +398,13 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 						onError: onPlayerError
 					}
 				});
+				const htmlEl = ytPlayer.getIframe ? ytPlayer.getIframe() : ytPlayer.h;
+				if (htmlEl instanceof HTMLIFrameElement && htmlEl.hasAttribute('sandbox')) {
+					htmlEl.setAttribute(
+						'sandbox',
+						'allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation'
+					);
+				}
 			} catch (error) {
 				vscode.window.showErrorMessage('Error initializing YouTube player: ' + error.message);
 				
@@ -428,13 +451,13 @@ class YouTubeShortsWebviewProvider implements vscode.WebviewViewProvider {
 		}
 
 		function onPlayerError(event) {
-			console.error('YouTube player error:', event.data);
+			console.error('YT Player error:', event.data);
+			if (event.data === 2 && window.chrome.cast?.isAvailable === false) {
+				// Likely the suppressed cast kick-off error — ignore it
+				return;
+			}
 			showError('Error loading video. It may be unavailable or restricted.');
-			
-			// Auto-advance to next video after error
-			setTimeout(() => {
-				vscode.postMessage({ type: 'nextVideo' });
-			}, 3000);
+			setTimeout(() => vscode.postMessage({ type: 'nextVideo' }), 3000);
 		}
 
 		function showError(message) {
