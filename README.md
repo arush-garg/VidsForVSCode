@@ -1,6 +1,6 @@
 # ScrollPilot
 
-A VS Code extension that brings YouTube Shorts to your coding environment! Browse YouTube Shorts while agents code for you. Perfect for taking quick breaks without leaving VS Code.
+A VS Code extension that brings YouTube Shorts to your coding environment! Browse YouTube Shorts while agents code for you. Watch a quick demo [here](https://youtu.be/ep6KnKgiyJc)!
 
 <i>Note: For the best experience, run this in a browser based IDE (like Github Codespaces). Some local installations have additional secruity features that prevent the videos from being displayed.</i>
 
